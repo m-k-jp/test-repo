@@ -1,0 +1,89 @@
+---
+import { getCollection } from 'astro:content';
+import Layout from '../../layouts/Layout.astro';
+import { memoTitle, memoDate, formatDate, memoExcerpt, sortMemos } from '../../lib/memo';
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const memos = sortMemos(await getCollection('memo'));
+---
+
+<Layout title="メモ">
+  <p class="back"><a href={`${base}/`}>← トップへ</a></p>
+
+  <h1>メモ</h1>
+  <p class="muted">リポジトリ直下の <code>memo/</code> に置いた Markdown が、そのまま記事になります。</p>
+
+  {memos.length === 0 ? (
+    <p>まだメモがありません。</p>
+  ) : (
+    <ul class="memo-list">
+      {memos.map((entry) => (
+        <li>
+          <a href={`${base}/memo/${entry.id}/`}>{memoTitle(entry)}</a>
+          {memoDate(entry) && <time datetime={memoDate(entry)!.toISOString()}>{formatDate(memoDate(entry))}</time>}
+          <p class="excerpt">{memoExcerpt(entry)}</p>
+        </li>
+      ))}
+    </ul>
+  )}
+
+  <h2>使い方</h2>
+  <p><code>memo/</code> フォルダに <code>.md</code> ファイルを置いて push するだけです。ファイルを <code>src/</code> に移す必要はありません。フロントマターも必須ではなく、素の Markdown で構いません。</p>
+  <p>タイトルは本文の最初の見出しから、日付はファイル名の <code>YYYY-MM-DD</code> から自動で拾います。明示したい場合だけ、先頭にフロントマターを書けばそちらが優先されます。</p>
+
+  <pre><code>---
+title: 好きなタイトル
+date: 2026-08-27
+tags: [メモ]
+draft: false
+---</code></pre>
+
+  <p><code>draft: true</code> にすると一覧から外れます。</p>
+
+  <p class="muted back"><a href={`${base}/`}>← トップへ</a></p>
+</Layout>
+
+<style>
+  h2 { margin-top: 3rem; font-size: 1.25rem; }
+  .back a { color: inherit; }
+
+  .memo-list {
+    list-style: none;
+    padding: 0;
+    margin: 1.5rem 0 0;
+  }
+
+  .memo-list li {
+    padding: 1rem 0;
+    border-bottom: 1px solid color-mix(in srgb, currentColor 15%, transparent);
+  }
+
+  .memo-list a {
+    font-size: 1.05rem;
+    font-weight: 600;
+  }
+
+  time {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-top: 0.2rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .excerpt {
+    margin: 0.5rem 0 0;
+    font-size: 0.9rem;
+    color: var(--muted);
+  }
+
+  pre {
+    background: color-mix(in srgb, currentColor 8%, transparent);
+    padding: 1rem;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-size: 0.9rem;
+  }
+
+  code { font-size: 0.9em; }
+</style>

@@ -1,0 +1,109 @@
+---
+import { getCollection, render } from 'astro:content';
+import type { GetStaticPaths } from 'astro';
+import Layout from '../../layouts/Layout.astro';
+import { memoTitle, memoDate, formatDate, sortMemos } from '../../lib/memo';
+
+export const getStaticPaths: GetStaticPaths = async () => {
+  const memos = sortMemos(await getCollection('memo'));
+  return memos.map((entry) => ({
+    params: { slug: entry.id },
+    props: { entry },
+  }));
+};
+
+const { entry } = Astro.props;
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+
+const { Content, headings } = await render(entry);
+const title = memoTitle(entry);
+const date = memoDate(entry);
+
+// 本文が自前で h1 を持っている場合は重複させない
+const bodyHasH1 = headings.some((h) => h.depth === 1);
+---
+
+<Layout title={`${title} — メモ`}>
+  <p class="back"><a href={`${base}/memo/`}>← メモ一覧へ</a></p>
+
+  {/* 本文が h1 を持つ場合も持たない場合も、日付は必ず見出しの上に置いて体裁を揃える */}
+  {date && <time datetime={date.toISOString()}>{formatDate(date)}</time>}
+  {!bodyHasH1 && <h1>{title}</h1>}
+
+  <article>
+    <Content />
+  </article>
+
+  {entry.data.tags && entry.data.tags.length > 0 && (
+    <ul class="tags">
+      {entry.data.tags.map((t) => <li>{t}</li>)}
+    </ul>
+  )}
+
+  <p class="muted back"><a href={`${base}/memo/`}>← メモ一覧へ</a></p>
+</Layout>
+
+<style>
+  .back a { color: inherit; }
+
+  time {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* 日付（キッカー）の直下に見出しが来るよう詰める */
+  h1 { margin-top: 0.25rem; }
+  article :global(h1) { margin-top: 0.25rem; }
+  article :global(h2) { margin-top: 2rem; font-size: 1.25rem; }
+
+  article :global(li) { margin-bottom: 0.4rem; }
+
+  article :global(pre) {
+    background: color-mix(in srgb, currentColor 8%, transparent);
+    padding: 1rem;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-size: 0.9rem;
+  }
+
+  article :global(blockquote) {
+    border-left: 3px solid color-mix(in srgb, currentColor 25%, transparent);
+    margin-left: 0;
+    padding-left: 1rem;
+    color: var(--muted);
+  }
+
+  article :global(img) { max-width: 100%; height: auto; }
+
+  article :global(table) {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+  }
+
+  article :global(th),
+  article :global(td) {
+    text-align: left;
+    padding: 0.45rem 0.6rem;
+    border-bottom: 1px solid color-mix(in srgb, currentColor 15%, transparent);
+  }
+
+  .tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    list-style: none;
+    padding: 0;
+    margin: 2rem 0 0;
+  }
+
+  .tags li {
+    font-size: 0.75rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, currentColor 10%, transparent);
+    color: var(--muted);
+  }
+</style>
