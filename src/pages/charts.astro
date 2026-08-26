@@ -1,0 +1,199 @@
+---
+import Layout from '../layouts/Layout.astro';
+import BundleChart from '../components/BundleChart.jsx';
+import LoadTimingChart from '../components/LoadTimingChart.jsx';
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+
+// BundleChart と同じ実測値。表ビュー用にこちらでも持つ。
+const CHUNKS = [
+  { label: 'Astro プリロード補助', bytes: 11814 },
+  { label: '3D シーン本体', bytes: 3048 },
+  { label: 'Preact hooks', bytes: 2598 },
+  { label: 'Astro アイランド起動', bytes: 1407 },
+];
+const kb = (b: number) => (b / 1024).toFixed(1) + ' KB';
+const appTotal = CHUNKS.reduce((a, c) => a + c.bytes, 0);
+const THREE_BYTES = 523431;
+const deferredTotal = appTotal + THREE_BYTES;
+---
+
+<Layout title="グラフのデモ">
+  <p class="back"><a href={`${base}/`}>← トップへ</a></p>
+
+  <h1>グラフのデモ</h1>
+  <p class="muted">Chart.js で、このサイト自身の実測データを描いています。</p>
+
+  <h2>初回に読み込まれる JavaScript</h2>
+
+  <div class="hero">
+    <div class="hero-value">0 KB</div>
+    <p class="hero-note">3D デモページを開いた瞬間に転送される JavaScript の量（ヘッドレス Chromium での実測）</p>
+  </div>
+
+  <p>この数字はサンプルではありません。3D デモページを実際にブラウザで開いて転送量を計測したところ、最初に届くのは HTML {kb(11077)} と favicon だけで、<strong>JavaScript は 1 バイトも読み込まれませんでした</strong>。Preact のランタイムすら含まれていません。</p>
+
+  <p>スクロールして 3D が画面に入ると、そこで初めて合計 {kb(deferredTotal)} の JavaScript が読み込まれます。<code>client:visible</code> が効いているためです。</p>
+
+  <div class="kpi">
+    <div class="kpi-item">
+      <div class="kpi-label">初回の HTML</div>
+      <div class="kpi-value">{kb(11077)}</div>
+    </div>
+    <div class="kpi-item">
+      <div class="kpi-label">遅延読み込みされる JS</div>
+      <div class="kpi-value">{kb(deferredTotal)}</div>
+    </div>
+    <div class="kpi-item">
+      <div class="kpi-label">うち three.js の割合</div>
+      <div class="kpi-value">{((THREE_BYTES / deferredTotal) * 100).toFixed(1)}%</div>
+    </div>
+  </div>
+
+  <h2>アプリ側のチャンクの内訳</h2>
+
+  <p>遅延読み込みされる {kb(deferredTotal)} のうち、{kb(THREE_BYTES)} は three.js 本体です。桁が違いすぎて同じグラフに並べても読めないので、three.js を除いたアプリ側の 4 つを比べています。</p>
+
+  <BundleChart client:visible />
+
+  <table class="chart-table">
+    <caption>チャンク別サイズ（非圧縮・実測値）</caption>
+    <thead>
+      <tr><th scope="col">チャンク</th><th scope="col">サイズ</th></tr>
+    </thead>
+    <tbody>
+      {CHUNKS.map((c) => (
+        <tr><th scope="row">{c.label}</th><td>{kb(c.bytes)}</td></tr>
+      ))}
+    </tbody>
+    <tfoot>
+      <tr><th scope="row">アプリ側 合計</th><td>{kb(appTotal)}</td></tr>
+      <tr><th scope="row">three.js</th><td>{kb(THREE_BYTES)}</td></tr>
+    </tfoot>
+  </table>
+
+  <h2>あなたのブラウザでの読み込み内訳</h2>
+
+  <p>こちらは固定値ではなく、<strong>いま表示しているこのページが実際に読み込まれたときの時間</strong>です。ブラウザの Navigation Timing API から取り出しているので、再読み込みするたびに数字が変わります。回線やキャッシュの状態によっては 0 ms の区間も出ます。</p>
+
+  <LoadTimingChart client:visible />
+
+  <h2>導入方法</h2>
+
+  <p>Chart.js も three.js と同じで、npm から入れてアイランドとして置くだけです。</p>
+
+  <pre><code>npm install chart.js</code></pre>
+
+  <pre><code>---
+import BundleChart from '../components/BundleChart.jsx';
+---
+
+&lt;BundleChart client:visible /&gt;</code></pre>
+
+  <p>グラフも <code>client:visible</code> にしてあるので、ここまでスクロールするまで Chart.js は読み込まれません。3D と同じ仕組みです。</p>
+
+  <h2>配色について</h2>
+
+  <p>色は適当に選んだものではなく、色覚特性のある方でも隣り合う色を区別できるか検証スクリプトで確認した組み合わせを使っています。ライトモードでは一部の色が背景とのコントラスト 3:1 を下回るため、グラフだけに頼らず<strong>すべての数値を表でも読めるようにしてあります</strong>。ダークモードにも自動で追従します。</p>
+
+  <p class="muted back"><a href={`${base}/`}>← トップへ</a></p>
+</Layout>
+
+<style>
+  h2 {
+    margin-top: 3rem;
+    font-size: 1.25rem;
+  }
+
+  .back a { color: inherit; }
+
+  .hero {
+    margin: 1.5rem 0 2rem;
+  }
+
+  .hero-value {
+    font-size: clamp(3rem, 12vw, 4.5rem);
+    font-weight: 650;
+    line-height: 1;
+    letter-spacing: -0.02em;
+  }
+
+  .hero-note {
+    margin: 0.6rem 0 0;
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+
+  .kpi {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+    gap: 1rem;
+    margin: 1.75rem 0;
+  }
+
+  .kpi-label {
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-bottom: 0.25rem;
+  }
+
+  .kpi-value {
+    font-size: 1.5rem;
+    font-weight: 600;
+  }
+
+  pre {
+    background: color-mix(in srgb, currentColor 8%, transparent);
+    padding: 1rem;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-size: 0.9rem;
+  }
+
+  code { font-size: 0.9em; }
+</style>
+
+<style is:global>
+  .chart-box {
+    height: 260px;
+    margin: 1.5rem 0 0.5rem;
+  }
+
+  .chart-box--short {
+    height: 190px;
+  }
+
+  .chart-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+    margin: 1rem 0 0;
+  }
+
+  .chart-table caption {
+    text-align: left;
+    color: var(--muted);
+    font-size: 0.8rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .chart-table th,
+  .chart-table td {
+    text-align: left;
+    padding: 0.45rem 0.6rem;
+    border-bottom: 1px solid color-mix(in srgb, currentColor 15%, transparent);
+    font-weight: 400;
+  }
+
+  /* 数値の列は縦に揃えたいので等幅数字にする */
+  .chart-table td {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .chart-table tfoot th,
+  .chart-table tfoot td {
+    font-weight: 600;
+    border-bottom: none;
+  }
+</style>
