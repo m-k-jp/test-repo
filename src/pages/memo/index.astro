@@ -2,7 +2,7 @@
 import { getCollection } from 'astro:content';
 import Layout from '../../layouts/Layout.astro';
 import { memoTitle, memoDate, formatDate, memoExcerpt, sortMemos } from '../../lib/memo';
-import { eyecatch } from '../../lib/eyecatch';
+import Thumbnail from '../../components/Thumbnail.astro';
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const memos = sortMemos(await getCollection('memo'));
@@ -19,11 +19,10 @@ const memos = sortMemos(await getCollection('memo'));
   ) : (
     <ul class="memo-list">
       {memos.map((entry) => {
-        const { emoji, gradient } = eyecatch(entry);
         return (
           <li>
             <a href={`${base}/memo/${entry.id}/`}>
-              <span class="thumb" style={`background:${gradient}`} aria-hidden="true">{emoji}</span>
+              <Thumbnail entry={entry} title={memoTitle(entry)} size="76px" />
               <span class="body">
                 <span class="title">{memoTitle(entry)}</span>
                 {memoDate(entry) && <time datetime={memoDate(entry)!.toISOString()}>{formatDate(memoDate(entry))}</time>}
@@ -85,17 +84,6 @@ draft: false
 
   .memo-list a:hover {
     background: color-mix(in srgb, currentColor 6%, transparent);
-  }
-
-  .thumb {
-    flex: none;
-    width: 68px;
-    height: 68px;
-    border-radius: 10px;
-    display: grid;
-    place-items: center;
-    font-size: 1.9rem;
-    text-shadow: 0 1px 3px rgb(0 0 0 / 0.25);
   }
 
   .body {

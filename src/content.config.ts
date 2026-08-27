@@ -15,7 +15,8 @@ const memo = defineCollection({
   schema: z.object({
     title: z.string().optional(),
     // アイキャッチに使う絵文字。未指定なら既定値が入る（src/lib/eyecatch.ts）
-    emoji: z.string().optional(),
+    // サムネイルに使う画像。本文の最初の画像より優先される
+    image: z.string().optional(),
     date: z.coerce.date().optional(),
     tags: z.array(z.string()).optional(),
     draft: z.boolean().optional(),

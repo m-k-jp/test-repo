@@ -1,7 +1,7 @@
 ---
 import { getCollection } from 'astro:content';
 import { memoTitle, memoDate, formatDate, sortMemos } from '../lib/memo';
-import { eyecatch } from '../lib/eyecatch';
+import Thumbnail from './Thumbnail.astro';
 
 /**
  * 左のサイドペイン。ノート（記事）を新しい順に並べる。
@@ -34,11 +34,10 @@ const here = Astro.url.pathname.replace(/\/$/, '');
       <ul>
         {memos.map((entry) => {
           const href = `${base}/memo/${entry.id}`;
-          const { emoji, gradient } = eyecatch(entry);
           return (
             <li>
               <a href={`${href}/`} aria-current={here === href ? 'page' : undefined}>
-                <span class="thumb" style={`background:${gradient}`} aria-hidden="true">{emoji}</span>
+                <Thumbnail entry={entry} title={memoTitle(entry)} size="36px" />
                 <span class="text">
                   <span class="title">{memoTitle(entry)}</span>
                   <span class="date">{formatDate(memoDate(entry))}</span>
@@ -155,18 +154,6 @@ const here = Astro.url.pathname.replace(/\/$/, '');
 
   li a[aria-current='page'] {
     background: color-mix(in srgb, var(--accent) 16%, transparent);
-  }
-
-  .thumb {
-    flex: none;
-    width: 34px;
-    height: 34px;
-    border-radius: 7px;
-    display: grid;
-    place-items: center;
-    font-size: 1rem;
-    /* 絵文字が背景に埋もれないよう、わずかに影を落とす */
-    text-shadow: 0 1px 2px rgb(0 0 0 / 0.25);
   }
 
   .text {
