@@ -18,13 +18,14 @@ https://m-k-jp.github.io/test-repo/
 ```bash
 npm install     # 依存関係のインストール
 npm run dev     # 開発サーバー起動（http://localhost:4321/test-repo/）
+npm run lint    # リント
 npm run check   # 型検査
-npm run verify  # 型検査＋ビルド（push 前におすすめ）
+npm run verify  # リント＋型検査＋ビルド（push 前におすすめ）
 npm run build   # 本番ビルド（dist/ に出力）
 npm run preview # ビルド結果の確認
 ```
 
-## 型検査について
+## リントと型検査について
 
 Vite は型注釈を除去するだけで検査は行わないため、型エラーがあってもビルドは
 成功してしまいます。そこで3段の関門を設けています。
@@ -32,8 +33,8 @@ Vite は型注釈を除去するだけで検査は行わないため、型エラ
 | 段 | 仕組み |
 |---|---|
 | 手元 | `npm run verify` |
-| push 時 | `.githooks/pre-push` が自動で型検査（`--no-verify` で迂回可） |
-| CI | ワークフローの Type check ステップ（迂回不可） |
+| push 時 | `.githooks/pre-push` が自動で検査（`--no-verify` で迂回可） |
+| CI | ワークフローの Lint / Type check ステップ（迂回不可） |
 
 pre-push フックは `npm install` 時に自動で有効化されます（`prepare` スクリプトが
 `core.hooksPath` を設定）。手動で有効にする場合は次の1回だけ実行してください。

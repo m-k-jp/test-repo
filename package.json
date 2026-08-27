@@ -6,16 +6,22 @@
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
+    "lint": "eslint .",
     "check": "astro check",
-    "verify": "astro check && astro build",
+    "verify": "eslint . && astro check && astro build",
     "preview": "astro preview",
     "astro": "astro",
     "prepare": "git config core.hooksPath .githooks || true"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.10",
+    "@eslint/js": "^10.0.1",
     "astro": "^7.2.7",
-    "typescript": "^6.0.3"
+    "eslint": "^10.9.1",
+    "eslint-plugin-astro": "^1.7.0",
+    "globals": "^17.11.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.68.0"
   },
   "dependencies": {
     "@astrojs/preact": "^6.0.4",

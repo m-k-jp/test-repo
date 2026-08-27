@@ -3,13 +3,15 @@
 Astro 7 で作った静的サイト。`main` に push すると GitHub Actions がビルドして
 GitHub Pages（https://m-k-jp.github.io/test-repo/）へ公開する。
 
-## push する前に必ず型検査を通すこと
+## push する前に必ず検査を通すこと
 
 **コードを変更したら、push する前に `npm run verify` を実行し、
 通ったものだけを push する。** 自分の判断で「動いたから大丈夫」と済ませない。
 
 ```bash
-npm run verify      # astro check（型検査）と astro build を続けて実行
+npm run verify      # eslint → astro check（型検査）→ astro build を順に実行
+npm run lint        # リントのみ
+npm run check       # 型検査のみ
 ```
 
 理由: Vite は型注釈を構文として除去するだけで**型検査を行わない**。
@@ -23,8 +25,12 @@ npm run verify      # astro check（型検査）と astro build を続けて実�
 | 段 | 仕組み | 迂回 |
 |---|---|---|
 | 手元 | `npm run verify` を自分で実行 | — |
-| push 時 | `.githooks/pre-push` が `astro check` を実行 | `--no-verify` |
-| CI | ワークフローの Type check ステップ | 不可 |
+| push 時 | `.githooks/pre-push` が `npm run verify` を実行 | `--no-verify` |
+| CI | ワークフローの Lint / Type check ステップ | 不可 |
+
+リント設定は `eslint.config.js`（フラットコンフィグ）。`eslint-plugin-jsx-a11y` は
+ESLint 10 に未対応のため入れていない。したがって **aria 属性や role の妥当性は
+自動検査されない**ので、その種のマークアップは自分で確認すること。
 
 `astro check` は zod 由来の hints を出すが、これは Astro 内部が非推奨サブパスを
 再エクスポートしているためで、こちらで対処するものではない。errors が 0 なら通過。

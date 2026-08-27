@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# push の前に型検査を走らせる関門。
+# push の前にリントと型検査を走らせる関門。
 #
 # Vite は型注釈を構文として除去するだけで検査しないため、
 # 型エラーを含むコードでもビルドは成功してしまう。
@@ -17,24 +17,31 @@ set -e
 
 # 依存が未インストールだと検査できない。CI 側の関門に委ねて通す。
 if [ ! -d node_modules ]; then
-  echo "pre-push: node_modules が無いため型検査を省略します（npm ci を推奨）"
+  echo "pre-push: node_modules が無いため検査を省略します（npm ci を推奨）"
   exit 0
 fi
 
-echo "pre-push: 型検査を実行します (astro check)"
+echo "pre-push: リント・型検査・ビルドを実行します (npm run verify)"
 
-if npm run --silent check; then
-  echo "pre-push: 型検査を通過しました"
+# 出力は一旦ためておき、失敗したときだけ見せる（成功時は静かに通す）
+log=$(mktemp)
+trap 'rm -f "$log"' EXIT
+
+if npm run --silent verify >"$log" 2>&1; then
+  echo "pre-push: すべて通過しました"
   exit 0
 fi
+
+cat "$log" >&2
 
 cat >&2 <<'MSG'
 
-pre-push: 型検査に失敗したため push を中止しました。
+pre-push: 検査に失敗したため push を中止しました。
 
   上のエラーを修正してから push し直してください。
-  検査だけ再実行する場合:  npm run check
-  検査とビルドをまとめて:  npm run verify
+  リントのみ:                   npm run lint
+  型検査のみ:                   npm run check
+  まとめて（リント+型+ビルド）: npm run verify
 
   意図的に迂回する場合のみ: git push --no-verify
 
