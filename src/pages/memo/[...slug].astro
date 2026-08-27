@@ -30,8 +30,8 @@ const date = memoDate(entry);
 const bodyHasH1 = headings.some((h) => h.depth === 1);
 ---
 
-<Layout title={`${title} — メモ`}>
-  <p class="back"><a href={`${base}/memo/`}>← メモ一覧へ</a></p>
+<Layout title={`${title} — ノート`}>
+  <p class="back"><a href={`${base}/memo/`}>← ノート一覧へ</a></p>
 
   {/* 本文が h1 を持つ場合も持たない場合も、日付は必ず見出しの上に置いて体裁を揃える */}
   {date && <time datetime={date.toISOString()}>{formatDate(date)}</time>}
@@ -47,7 +47,7 @@ const bodyHasH1 = headings.some((h) => h.depth === 1);
     </ul>
   )}
 
-  <p class="muted back"><a href={`${base}/memo/`}>← メモ一覧へ</a></p>
+  <p class="muted back"><a href={`${base}/memo/`}>← ノート一覧へ</a></p>
 </Layout>
 
 <style>

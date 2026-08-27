@@ -1,0 +1,210 @@
+---
+import { getCollection } from 'astro:content';
+import { memoTitle, memoDate, formatDate, sortMemos } from '../lib/memo';
+import { eyecatch } from '../lib/eyecatch';
+
+/**
+ * 左のサイドペイン。ノート（記事）を新しい順に並べる。
+ *
+ * 広い画面では開いた状態、狭い画面では隠れた状態が既定。
+ * 開閉はヘッダーのボタンで行い、選択は localStorage に保存する
+ * （初回描画前の適用は Layout.astro の is:inline スクリプトが担当）。
+ */
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const memos = sortMemos(await getCollection('memo'));
+
+// 現在開いているページを強調するため、末尾スラッシュを揃えて比較する
+const here = Astro.url.pathname.replace(/\/$/, '');
+---
+
+<div class="scrim" data-sidebar-close aria-hidden="true"></div>
+
+<aside id="sidebar" aria-label="ノート一覧">
+  <div class="head">
+    <a href={`${base}/`} class="site">test-repo</a>
+  </div>
+
+  <nav>
+    <p class="section">ノート</p>
+
+    {memos.length === 0 ? (
+      <p class="empty">まだノートがありません</p>
+    ) : (
+      <ul>
+        {memos.map((entry) => {
+          const href = `${base}/memo/${entry.id}`;
+          const { emoji, gradient } = eyecatch(entry);
+          return (
+            <li>
+              <a href={`${href}/`} aria-current={here === href ? 'page' : undefined}>
+                <span class="thumb" style={`background:${gradient}`} aria-hidden="true">{emoji}</span>
+                <span class="text">
+                  <span class="title">{memoTitle(entry)}</span>
+                  <span class="date">{formatDate(memoDate(entry))}</span>
+                </span>
+              </a>
+            </li>
+          );
+        })}
+      </ul>
+    )}
+
+    <p class="section">ページ</p>
+    <ul class="plain">
+      <li><a href={`${base}/memo/`} aria-current={here === `${base}/memo` ? 'page' : undefined}>ノート一覧</a></li>
+      <li><a href={`${base}/demo/`} aria-current={here === `${base}/demo` ? 'page' : undefined}>3D デモ</a></li>
+      <li><a href={`${base}/charts/`} aria-current={here === `${base}/charts` ? 'page' : undefined}>グラフのデモ</a></li>
+    </ul>
+  </nav>
+</aside>
+
+<style>
+  aside {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 30;
+    width: var(--sidebar-w);
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    background: var(--surface-2);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    /* 既定は隠した状態。開いているときだけ 0 に戻す */
+    transform: translateX(-100%);
+    transition: transform 0.22s ease;
+  }
+
+  :global(html[data-sidebar='open']) aside {
+    transform: translateX(0);
+  }
+
+  /* 画面を覆う膜。狭い画面で開いたときだけ出す */
+  .scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 25;
+    background: rgb(0 0 0 / 0.4);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.22s ease;
+  }
+
+  :global(html[data-sidebar='open']) .scrim {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* 広い画面では本文を押し出す形にするので、膜は出さない */
+  @media (min-width: 60rem) {
+    :global(html[data-sidebar='open']) .scrim {
+      opacity: 0;
+      pointer-events: none;
+    }
+  }
+
+  .head {
+    padding: 1rem 1rem 0.5rem;
+    /* 開閉ボタンと重ならないよう左に余白を取る */
+    padding-left: 3.5rem;
+  }
+
+  .site {
+    font-weight: 650;
+    font-size: 0.95rem;
+    color: var(--fg);
+    text-decoration: none;
+  }
+
+  nav {
+    padding: 0.5rem 0.6rem 2rem;
+  }
+
+  .section {
+    margin: 1rem 0 0.4rem;
+    padding: 0 0.4rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+  }
+
+  ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  li a {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.45rem 0.4rem;
+    border-radius: 8px;
+    color: var(--fg);
+    text-decoration: none;
+    line-height: 1.4;
+  }
+
+  li a:hover {
+    background: color-mix(in srgb, var(--fg) 8%, transparent);
+  }
+
+  li a[aria-current='page'] {
+    background: color-mix(in srgb, var(--accent) 16%, transparent);
+  }
+
+  .thumb {
+    flex: none;
+    width: 34px;
+    height: 34px;
+    border-radius: 7px;
+    display: grid;
+    place-items: center;
+    font-size: 1rem;
+    /* 絵文字が背景に埋もれないよう、わずかに影を落とす */
+    text-shadow: 0 1px 2px rgb(0 0 0 / 0.25);
+  }
+
+  .text {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .title {
+    font-size: 0.85rem;
+    /* 長いタイトルは2行で打ち切る */
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .date {
+    font-size: 0.7rem;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .plain a {
+    font-size: 0.85rem;
+    padding-left: 0.5rem;
+  }
+
+  .empty {
+    padding: 0 0.4rem;
+    font-size: 0.85rem;
+    color: var(--muted);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    aside,
+    .scrim {
+      transition: none;
+    }
+  }
+</style>

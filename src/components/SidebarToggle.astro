@@ -1,0 +1,119 @@
+---
+/**
+ * サイドペインの開閉ボタン。
+ *
+ * 開閉状態は html[data-sidebar] で表し、CSS 側がそれを見て動く。
+ * 広い画面と狭い画面で既定値が違うため、
+ * 「利用者が明示的に選んだか」を localStorage で区別している。
+ */
+---
+
+<button
+  type="button"
+  id="sidebar-toggle"
+  aria-controls="sidebar"
+  aria-expanded="false"
+  aria-label="ノート一覧を開く"
+>
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M3.5 6.5h17M3.5 12h17M3.5 17.5h17" />
+  </svg>
+</button>
+
+<script>
+  const STORAGE_KEY = 'sidebar';
+  const WIDE = window.matchMedia('(min-width: 60rem)');
+  const root = document.documentElement;
+  const button = document.getElementById('sidebar-toggle');
+
+  const isOpen = () => root.dataset.sidebar === 'open';
+
+  const sync = () => {
+    button?.setAttribute('aria-expanded', String(isOpen()));
+    button?.setAttribute('aria-label', isOpen() ? 'ノート一覧を閉じる' : 'ノート一覧を開く');
+  };
+
+  const set = (open: boolean, remember: boolean) => {
+    root.dataset.sidebar = open ? 'open' : 'closed';
+    if (remember) {
+      try {
+        localStorage.setItem(STORAGE_KEY, open ? 'open' : 'closed');
+      } catch {
+        /* 保存できなくても、そのページ内での開閉は効かせる */
+      }
+    }
+    sync();
+  };
+
+  sync();
+
+  button?.addEventListener('click', () => set(!isOpen(), true));
+
+  // 膜をタップしたら閉じる（狭い画面で本文に戻る操作）
+  document.querySelector('[data-sidebar-close]')?.addEventListener('click', () => set(false, true));
+
+  // 狭い画面では覆いかぶさるので、Esc で閉じられるようにする
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && isOpen() && !WIDE.matches) set(false, true);
+  });
+
+  // 画面幅が変わったとき、利用者が明示的に選んでいなければ既定に従う
+  WIDE.addEventListener('change', (e) => {
+    let saved = null;
+    try {
+      saved = localStorage.getItem(STORAGE_KEY);
+    } catch {
+      /* 読めない場合は既定に従う */
+    }
+    if (saved === null) set(e.matches, false);
+  });
+</script>
+
+<style>
+  button {
+    position: fixed;
+    top: 0.85rem;
+    left: 0.85rem;
+    z-index: 40;
+    display: none; /* JS が無い環境では動かないので出さない */
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    background: color-mix(in srgb, var(--bg) 82%, transparent);
+    backdrop-filter: blur(8px);
+    color: var(--fg);
+    cursor: pointer;
+    transition: background-color 0.15s;
+  }
+
+  :global(html.js) button {
+    display: grid;
+  }
+
+  button:hover {
+    background: var(--surface-2);
+  }
+
+  button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  svg {
+    width: 17px;
+    height: 17px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    button {
+      transition: none;
+    }
+  }
+</style>

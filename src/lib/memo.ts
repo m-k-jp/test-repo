@@ -34,13 +34,23 @@ export function formatDate(d: Date | undefined): string {
   return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
 }
 
-/** 本文から見出しと記号を落とした抜粋 */
+/**
+ * 本文から抜粋を作る。
+ * コードブロックや表がそのまま出ると読めないので、地の文だけを残す。
+ */
 export function memoExcerpt(entry: Memo, max = 80): string {
   const text = (entry.body ?? '')
-    .replace(/^---[\s\S]*?---/, '')
+    .replace(/^---[\s\S]*?---/, '')      // フロントマター
+    .replace(/```[\s\S]*?```/g, '')      // コードブロック
+    .replace(/`([^`]*)`/g, '$1')         // インラインコードの記号だけ外す
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, '')  // 画像
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1') // リンクは表示文字だけ残す
     .split('\n')
-    .filter((l) => !/^\s*#/.test(l))
-    .map((l) => l.replace(/^\s*[-*+]\s+/, '').trim())
+    .filter((l) => !/^\s*#/.test(l))     // 見出し
+    .filter((l) => !/^\s*\|/.test(l))    // 表
+    .filter((l) => !/^\s*[-:|\s]+$/.test(l)) // 区切り線
+    .map((l) => l.replace(/^\s*[-*+]\s+/, '').replace(/^\s*>\s*/, '').trim())
+    .map((l) => l.replace(/\*\*([^*]*)\*\*/g, '$1')) // 強調
     .filter(Boolean)
     .join(' ');
   return text.length > max ? text.slice(0, max) + '…' : text;

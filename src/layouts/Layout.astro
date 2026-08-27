@@ -1,5 +1,7 @@
 ---
 import ThemeToggle from '../components/ThemeToggle.astro';
+import Sidebar from '../components/Sidebar.astro';
+import SidebarToggle from '../components/SidebarToggle.astro';
 
 interface Props {
   title: string;
@@ -31,14 +33,31 @@ const { title } = Astro.props;
         } catch {
           /* localStorage が使えない環境ではシステム設定に従う */
         }
+
+        // サイドペインの初期状態。広い画面は開、狭い画面は閉が既定。
+        // 描画後に決めると開閉のアニメーションが一瞬見えるため、ここで確定させる。
+        let sidebar = null;
+        try {
+          sidebar = localStorage.getItem('sidebar');
+        } catch {
+          /* 読めない場合は画面幅で決める */
+        }
+        if (sidebar !== 'open' && sidebar !== 'closed') {
+          sidebar = window.matchMedia('(min-width: 60rem)').matches ? 'open' : 'closed';
+        }
+        root.dataset.sidebar = sidebar;
       })();
     </script>
   </head>
   <body>
+    <SidebarToggle />
+    <Sidebar />
     <ThemeToggle />
-    <main>
-      <slot />
-    </main>
+    <div class="content">
+      <main>
+        <slot />
+      </main>
+    </div>
   </body>
 </html>
 
@@ -91,10 +110,35 @@ const { title } = Astro.props;
     line-height: 1.8;
   }
 
+  /* サイドペインの幅。ここを変えれば本文の押し出し量も追従する */
+  :root {
+    --sidebar-w: 17rem;
+  }
+
   main {
     max-width: 42rem;
     margin: 0 auto;
     padding: 4rem 1.5rem;
+  }
+
+  /*
+    広い画面ではサイドペインが本文を押し出す。
+    狭い画面では本文の上に覆いかぶさるので、押し出しは行わない。
+  */
+  @media (min-width: 60rem) {
+    .content {
+      transition: padding-left 0.22s ease;
+    }
+
+    :root[data-sidebar='open'] .content {
+      padding-left: var(--sidebar-w);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .content {
+      transition: none;
+    }
   }
 
   h1 {
@@ -108,5 +152,33 @@ const { title } = Astro.props;
 
   a {
     color: var(--accent);
+  }
+
+  /*
+    コードブロックの配色。
+    Shiki が light / dark 両方の値を CSS 変数として出力するので、
+    配色トークンと同じ3スコープの考え方で dark 側に切り替える。
+    Shiki はインラインスタイルで色を当てるため !important が要る。
+  */
+  /*
+    背景は Shiki のテーマ由来の色ではなくサイトのトークンを使う。
+    github-light の背景は純白で、ライトモードだとページと同化して
+    コードブロックだと分からなくなるため。
+  */
+  .astro-code {
+    background-color: var(--surface-2) !important;
+    border: 1px solid var(--border);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme='light']) .astro-code,
+    :root:not([data-theme='light']) .astro-code span {
+      color: var(--shiki-dark) !important;
+    }
+  }
+
+  :root[data-theme='dark'] .astro-code,
+  :root[data-theme='dark'] .astro-code span {
+    color: var(--shiki-dark) !important;
   }
 </style>

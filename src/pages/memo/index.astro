@@ -2,28 +2,40 @@
 import { getCollection } from 'astro:content';
 import Layout from '../../layouts/Layout.astro';
 import { memoTitle, memoDate, formatDate, memoExcerpt, sortMemos } from '../../lib/memo';
+import { eyecatch } from '../../lib/eyecatch';
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const memos = sortMemos(await getCollection('memo'));
 ---
 
-<Layout title="メモ">
+<Layout title="ノート">
   <p class="back"><a href={`${base}/`}>← トップへ</a></p>
 
-  <h1>メモ</h1>
-  <p class="muted">リポジトリ直下の <code>memo/</code> に置いた Markdown が、そのまま記事になります。</p>
+  <h1>ノート</h1>
+  <p class="muted">リポジトリ直下の <code>memo/</code> に置いた Markdown が、そのままノートになります。</p>
 
   {memos.length === 0 ? (
-    <p>まだメモがありません。</p>
+    <p>まだノートがありません。</p>
   ) : (
     <ul class="memo-list">
-      {memos.map((entry) => (
-        <li>
-          <a href={`${base}/memo/${entry.id}/`}>{memoTitle(entry)}</a>
-          {memoDate(entry) && <time datetime={memoDate(entry)!.toISOString()}>{formatDate(memoDate(entry))}</time>}
-          <p class="excerpt">{memoExcerpt(entry)}</p>
-        </li>
-      ))}
+      {memos.map((entry) => {
+        const { emoji, gradient } = eyecatch(entry);
+        return (
+          <li>
+            <a href={`${base}/memo/${entry.id}/`}>
+              <span class="thumb" style={`background:${gradient}`} aria-hidden="true">{emoji}</span>
+              <span class="body">
+                <span class="title">{memoTitle(entry)}</span>
+                {memoDate(entry) && <time datetime={memoDate(entry)!.toISOString()}>{formatDate(memoDate(entry))}</time>}
+                <span class="excerpt">{memoExcerpt(entry)}</span>
+                {entry.data.tags && entry.data.tags.length > 0 && (
+                  <span class="tags">{entry.data.tags.map((t) => <span>{t}</span>)}</span>
+                )}
+              </span>
+            </a>
+          </li>
+        );
+      })}
     </ul>
   )}
 
@@ -54,26 +66,79 @@ draft: false
   }
 
   .memo-list li {
-    padding: 1rem 0;
     border-bottom: 1px solid color-mix(in srgb, currentColor 15%, transparent);
   }
 
+  .memo-list li:last-child {
+    border-bottom: none;
+  }
+
   .memo-list a {
+    display: flex;
+    gap: 0.9rem;
+    padding: 1rem 0.5rem;
+    margin: 0 -0.5rem;
+    border-radius: 10px;
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .memo-list a:hover {
+    background: color-mix(in srgb, currentColor 6%, transparent);
+  }
+
+  .thumb {
+    flex: none;
+    width: 68px;
+    height: 68px;
+    border-radius: 10px;
+    display: grid;
+    place-items: center;
+    font-size: 1.9rem;
+    text-shadow: 0 1px 3px rgb(0 0 0 / 0.25);
+  }
+
+  .body {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+
+  .title {
     font-size: 1.05rem;
     font-weight: 600;
+    line-height: 1.5;
   }
 
   time {
-    display: block;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     color: var(--muted);
-    margin-top: 0.2rem;
     font-variant-numeric: tabular-nums;
   }
 
   .excerpt {
-    margin: 0.5rem 0 0;
-    font-size: 0.9rem;
+    font-size: 0.88rem;
+    color: var(--muted);
+    line-height: 1.7;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-top: 0.35rem;
+  }
+
+  .tags span {
+    font-size: 0.7rem;
+    padding: 0.1rem 0.45rem;
+    border-radius: 999px;
+    border: 1px solid var(--border);
     color: var(--muted);
   }
 
