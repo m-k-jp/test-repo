@@ -183,6 +183,16 @@ const here = Astro.url.pathname.replace(/\/$/, '');
     padding: 0;
   }
 
+  /*
+    画面外の項目は描画処理そのものを省く。
+    HTML には全件が入ったままなので、JS 無効でも検索でも欠けない。
+    contain-intrinsic-size で高さを見積もらせ、スクロールバーが跳ねるのを防ぐ。
+  */
+  li {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 3.2rem;
+  }
+
   li a {
     display: flex;
     align-items: center;
