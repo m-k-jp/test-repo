@@ -1,0 +1,161 @@
+/*
+ * サイドペインの項目とサムネイルの見た目。
+ *
+ * これらのマークアップは src/lib/note-item.ts が文字列として組み立てるため、
+ * Astro のスコープ付きスタイルが当たらない。だから全体に効く CSS として置く。
+ */
+
+/* --- サムネイル --- */
+
+.thumb {
+  /* 一辺を基準に font-size を決めることで、中身が全体に追従して縮む */
+  width: var(--thumb-size);
+  height: var(--thumb-size);
+  font-size: calc(var(--thumb-size) / 10);
+  flex: none;
+  position: relative;
+  display: block;
+  border-radius: 0.9em;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--doc-bg);
+}
+
+.thumb--image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* 書類の紙色。ページ背景から少しだけ浮かせる */
+.thumb--doc {
+  --doc-bg: #fbfaf8;
+  --ln-text: #c9c6bd;
+  --ln-heading: #57544c;
+  --ini-color: #1a1a1a;
+}
+
+:root[data-theme='dark'] .thumb--doc {
+  --doc-bg: #20222a;
+  --ln-text: #494e5c;
+  --ln-heading: #b9bdc9;
+  --ini-color: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .thumb--doc {
+    --doc-bg: #20222a;
+    --ln-text: #494e5c;
+    --ln-heading: #b9bdc9;
+    --ini-color: #ffffff;
+  }
+}
+
+.thumb .lines {
+  position: absolute;
+  inset: 1.5em 1.4em;
+  display: flex;
+  flex-direction: column;
+  gap: 0.42em;
+}
+
+.thumb .ln {
+  height: 0.34em;
+  border-radius: 0.17em;
+  background: var(--ln-text);
+}
+
+.thumb .ln--heading {
+  height: 0.52em;
+  background: var(--ln-heading);
+}
+
+.thumb .ln--code {
+  opacity: 0.85;
+}
+
+/* 小さく表示すると行だけでは区別しにくいので、頭文字を薄く重ねる */
+.thumb .ini {
+  position: absolute;
+  right: 0.5em;
+  bottom: 0.1em;
+  font-size: 4.6em;
+  font-weight: 650;
+  line-height: 1;
+  color: var(--ini-color);
+  opacity: 0.09;
+  user-select: none;
+}
+
+.thumb .badge {
+  position: absolute;
+  right: 0.7em;
+  bottom: 0.7em;
+  padding: 0.1em 0.35em;
+  border-radius: 0.35em;
+  font-size: 0.85em;
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+}
+
+/* --- サイドペインの項目 --- */
+
+#sidebar .month {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin: 0.8rem 0 0.3rem;
+  padding: 0.25rem 0.4rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--muted);
+  background: var(--surface-2);
+}
+
+#sidebar nav ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* 画面外の項目は描画処理そのものを省く */
+#sidebar nav li {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 3.2rem;
+}
+
+#sidebar nav li a {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.45rem 0.4rem;
+  border-radius: 8px;
+  color: var(--fg);
+  text-decoration: none;
+  line-height: 1.4;
+}
+
+#sidebar nav li a:hover {
+  background: color-mix(in srgb, var(--fg) 8%, transparent);
+}
+
+#sidebar nav li a[aria-current='page'] {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+#sidebar .text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+#sidebar .title {
+  font-size: 0.85rem;
+  /* 長いタイトルは2行で打ち切る */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}

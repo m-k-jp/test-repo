@@ -1,139 +1,21 @@
 ---
 import type { CollectionEntry } from 'astro:content';
 import { thumbnail } from '../lib/thumbnail';
+import { renderThumbnail } from '../lib/note-item';
+import '../styles/notes.css';
 
 interface Props {
   entry: CollectionEntry<'memo'>;
   title: string;
-  /** 一辺の大きさ。単位付きで渡す（例: 34px, 4.25rem） */
+  /** 一辺の大きさ。単位付きで渡す（例: 36px, 4.25rem） */
   size: string;
 }
 
 const { entry, title, size } = Astro.props;
-const t = thumbnail(entry, title);
 
-// 行の高さや余白は em で表現し、font-size を変えるだけで拡大縮小できるようにする。
-// これで 34px でも 150px でも同じ比率を保てる。
-const style = `--thumb-size:${size};--thumb-hue:${t.hue}`;
+// 描画は note-item.ts の1か所に寄せてある。
+// サイドペインの動的読み込みと同じ HTML がここでも使われる。
+const html = renderThumbnail(thumbnail(entry, title), size);
 ---
 
-{t.kind === 'image' ? (
-  <span class="thumb thumb--image" style={style}>
-    <img src={t.src} alt="" loading="lazy" decoding="async" />
-  </span>
-) : (
-  <span class="thumb thumb--doc" style={style} aria-hidden="true">
-    <span class="ini">{t.initial}</span>
-
-    <span class="lines">
-      {t.lines.map((l) => (
-        <span
-          class:list={['ln', `ln--${l.kind}`]}
-          style={`width:${Math.round(l.width * 100)}%${l.kind === 'code' && t.lang ? `;background:${t.lang.color}` : ''}`}
-        />
-      ))}
-    </span>
-
-    {t.lang && (
-      <span class="badge" style={`background:${t.lang.color};color:${t.lang.ink}`}>{t.lang.label}</span>
-    )}
-  </span>
-)}
-
-<style>
-  .thumb {
-    /* 一辺を基準に font-size を決めることで、中身が全体に追従して縮む */
-    width: var(--thumb-size);
-    height: var(--thumb-size);
-    font-size: calc(var(--thumb-size) / 10);
-    flex: none;
-    position: relative;
-    display: block;
-    border-radius: 0.9em;
-    overflow: hidden;
-    border: 1px solid var(--border);
-    background: var(--doc-bg);
-  }
-
-  .thumb--image img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-  }
-
-  /* 書類の紙色。ページ背景から少しだけ浮かせる */
-  .thumb--doc {
-    --doc-bg: #fbfaf8;
-    --ln-text: #c9c6bd;
-    --ln-heading: #57544c;
-    --ini-color: #1a1a1a;
-  }
-
-  :global(:root[data-theme='dark']) .thumb--doc {
-    --doc-bg: #20222a;
-    --ln-text: #494e5c;
-    --ln-heading: #b9bdc9;
-    --ini-color: #ffffff;
-  }
-
-  @media (prefers-color-scheme: dark) {
-    :global(:root:not([data-theme='light'])) .thumb--doc {
-      --doc-bg: #20222a;
-      --ln-text: #494e5c;
-      --ln-heading: #b9bdc9;
-      --ini-color: #ffffff;
-    }
-  }
-
-  .lines {
-    position: absolute;
-    inset: 1.5em 1.4em;
-    display: flex;
-    flex-direction: column;
-    gap: 0.42em;
-  }
-
-  .ln {
-    height: 0.34em;
-    border-radius: 0.17em;
-    background: var(--ln-text);
-  }
-
-  .ln--heading {
-    height: 0.52em;
-    background: var(--ln-heading);
-  }
-
-  .ln--code {
-    opacity: 0.85;
-  }
-
-  /*
-    小さく表示すると行だけでは区別が付きにくいので、
-    タイトルの頭文字を薄く重ねて手がかりにする。
-  */
-  .ini {
-    position: absolute;
-    right: 0.5em;
-    bottom: 0.1em;
-    font-size: 4.6em;
-    font-weight: 650;
-    line-height: 1;
-    color: var(--ini-color);
-    opacity: 0.09;
-    user-select: none;
-  }
-
-  .badge {
-    position: absolute;
-    right: 0.7em;
-    bottom: 0.7em;
-    padding: 0.1em 0.35em;
-    border-radius: 0.35em;
-    font-size: 0.85em;
-    font-weight: 700;
-    line-height: 1.35;
-    letter-spacing: 0.02em;
-  }
-</style>
+<Fragment set:html={html} />

@@ -1,32 +1,46 @@
 ---
 import { getCollection } from 'astro:content';
-import { memoTitle, memoDate, sortMemos } from '../lib/memo';
-import Thumbnail from './Thumbnail.astro';
+import { sortMemos, memoDate } from '../lib/memo';
+import { renderNoteItem, renderMonthHeading, monthLabel } from '../lib/note-item';
+import { CHUNK } from '../pages/notes/[page].json';
+import '../styles/notes.css';
 
 /**
- * 左のサイドペイン。ノート（記事）を新しい順に並べる。
+ * 左のサイドペイン。ノートを新しい順に並べる。
  *
- * 広い画面では開いた状態、狭い画面では隠れた状態が既定。
- * 開閉はヘッダーのボタンで行い、選択は localStorage に保存する
- * （初回描画前の適用は Layout.astro の is:inline スクリプトが担当）。
+ * 全件を埋め込むと出力サイズがノート数の2乗で増えるため、
+ * HTML に入れるのは最初の1塊だけ。
+ * 続きはスクロールが末尾に近づいたときに JSON から取りに行く。
  */
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
-const memos = sortMemos(await getCollection('memo'));
-
-// 件数が増えると平坦な一覧は探しにくいので、年月で区切る。
-// 日付が無いノートは末尾にまとめる。
-const groups: { label: string; items: typeof memos }[] = [];
-for (const entry of memos) {
-  const d = memoDate(entry);
-  const label = d ? `${d.getFullYear()}年${d.getMonth() + 1}月` : '日付なし';
-  const last = groups.at(-1);
-  if (last?.label === label) last.items.push(entry);
-  else groups.push({ label, items: [entry] });
-}
+const all = sortMemos(await getCollection('memo'));
+const first = all.slice(0, CHUNK);
+const hasNext = all.length > CHUNK;
 
 // 現在開いているページを強調するため、末尾スラッシュを揃えて比較する
 const here = Astro.url.pathname.replace(/\/$/, '');
+const currentEntry = all.find((e) => here === `${base}/memo/${e.id}`);
+
+// 最初の塊に含まれない記事を開いている場合、その1件だけ先頭に添えて
+// 「いまどこにいるか」が分かるようにする
+const pinned =
+  currentEntry && !first.includes(currentEntry) ? currentEntry : undefined;
+
+let listHtml = '';
+let label = '';
+let open = false;
+for (const entry of first) {
+  const m = monthLabel(memoDate(entry));
+  if (m !== label) {
+    if (open) listHtml += '</ul>';
+    listHtml += renderMonthHeading(m) + '<ul>';
+    label = m;
+    open = true;
+  }
+  listHtml += renderNoteItem(entry, base, entry === currentEntry);
+}
+if (open) listHtml += '</ul>';
 ---
 
 <div class="scrim" data-sidebar-close aria-hidden="true"></div>
@@ -37,32 +51,20 @@ const here = Astro.url.pathname.replace(/\/$/, '');
   </div>
 
   <nav>
-    <p class="section">ノート</p>
+    {pinned && (
+      <>
+        <p class="month">開いているノート</p>
+        <ul set:html={renderNoteItem(pinned, base, true)} />
+      </>
+    )}
 
-    {memos.length === 0 ? (
+    {all.length === 0 ? (
       <p class="empty">まだノートがありません</p>
     ) : (
-      groups.map((g) => (
-        <>
-          <p class="month">{g.label}</p>
-          <ul>
-            {g.items.map((entry) => {
-              const href = `${base}/memo/${entry.id}`;
-              return (
-                <li>
-                  <a href={`${href}/`} aria-current={here === href ? 'page' : undefined}>
-                    <Thumbnail entry={entry} title={memoTitle(entry)} size="36px" />
-                    <span class="text">
-                      <span class="title">{memoTitle(entry)}</span>
-                    </span>
-                  </a>
-                </li>
-              );
-            })}
-          </ul>
-        </>
-      ))
+      <Fragment set:html={listHtml} />
     )}
+
+    {hasNext && <div id="notes-more" data-next="1" aria-hidden="true"></div>}
 
     <p class="section">ページ</p>
     <ul class="plain">
@@ -74,8 +76,7 @@ const here = Astro.url.pathname.replace(/\/$/, '');
 </aside>
 
 <script is:inline>
-  // 一覧の下のほうにあるノートを開いたとき、ペインは先頭を向いたままになる。
-  // 描画が終わる前に現在地へ寄せておくことで、スクロールが跳ねて見えるのを防ぐ。
+  // 現在地へ寄せる。描画が終わる前に走らせて、スクロールが跳ねて見えるのを防ぐ。
   (function () {
     const pane = document.getElementById('sidebar');
     const list = pane && pane.querySelector('nav');
@@ -84,6 +85,45 @@ const here = Astro.url.pathname.replace(/\/$/, '');
     const offset = current.offsetTop - list.clientHeight / 2 + current.clientHeight / 2;
     list.scrollTop = Math.max(0, offset);
   })();
+</script>
+
+<script>
+  // 末尾に近づいたら続きを取りに行く。
+  // 中身はビルド時に組み立て済みの HTML なので、ここでは差し込むだけ。
+  const sentinel = document.getElementById('notes-more');
+  const nav = document.querySelector('#sidebar nav');
+
+  if (sentinel && nav) {
+    const base = document.documentElement.dataset.base ?? '';
+    let loading = false;
+
+    const loadNext = async () => {
+      const next = sentinel.dataset.next;
+      if (loading || !next) return;
+      loading = true;
+      try {
+        const res = await fetch(`${base}/notes/${next}.json`);
+        if (!res.ok) throw new Error(String(res.status));
+        const data = await res.json();
+        sentinel.insertAdjacentHTML('beforebegin', data.html);
+        if (data.hasNext) sentinel.dataset.next = String(Number(next) + 1);
+        else delete sentinel.dataset.next;
+      } catch {
+        // 取得に失敗しても一覧ページから全件たどれるので、ここでは黙って諦める
+        delete sentinel.dataset.next;
+      } finally {
+        loading = false;
+      }
+    };
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) loadNext();
+      },
+      { root: nav, rootMargin: '400px' },
+    );
+    observer.observe(sentinel);
+  }
 </script>
 
 <style>
@@ -156,18 +196,6 @@ const here = Astro.url.pathname.replace(/\/$/, '');
     padding: 0 0.6rem 2rem;
   }
 
-  .month {
-    position: sticky;
-    top: 0;
-    z-index: 1;
-    margin: 0.8rem 0 0.3rem;
-    padding: 0.25rem 0.4rem;
-    font-size: 0.7rem;
-    font-weight: 600;
-    color: var(--muted);
-    background: var(--surface-2);
-  }
-
   .section {
     margin: 1.4rem 0 0.4rem;
     padding: 0 0.4rem;
@@ -177,59 +205,27 @@ const here = Astro.url.pathname.replace(/\/$/, '');
     color: var(--muted);
   }
 
-  ul {
+  .plain {
     list-style: none;
     margin: 0;
     padding: 0;
   }
 
-  /*
-    画面外の項目は描画処理そのものを省く。
-    HTML には全件が入ったままなので、JS 無効でも検索でも欠けない。
-    contain-intrinsic-size で高さを見積もらせ、スクロールバーが跳ねるのを防ぐ。
-  */
-  li {
-    content-visibility: auto;
-    contain-intrinsic-size: auto 3.2rem;
-  }
-
-  li a {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    padding: 0.45rem 0.4rem;
+  .plain a {
+    display: block;
+    font-size: 0.85rem;
+    padding: 0.45rem 0.5rem;
     border-radius: 8px;
     color: var(--fg);
     text-decoration: none;
-    line-height: 1.4;
   }
 
-  li a:hover {
+  .plain a:hover {
     background: color-mix(in srgb, var(--fg) 8%, transparent);
   }
 
-  li a[aria-current='page'] {
+  .plain a[aria-current='page'] {
     background: color-mix(in srgb, var(--accent) 16%, transparent);
-  }
-
-  .text {
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .title {
-    font-size: 0.85rem;
-    /* 長いタイトルは2行で打ち切る */
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-
-  .plain a {
-    font-size: 0.85rem;
-    padding-left: 0.5rem;
   }
 
   .empty {
