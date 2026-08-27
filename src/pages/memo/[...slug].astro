@@ -1,8 +1,15 @@
 ---
 import { getCollection, render } from 'astro:content';
+import type { CollectionEntry } from 'astro:content';
 import type { GetStaticPaths } from 'astro';
 import Layout from '../../layouts/Layout.astro';
 import { memoTitle, memoDate, formatDate, sortMemos } from '../../lib/memo';
+
+// getStaticPaths から props で受け取る値の型。
+// これを宣言しないと Astro.props が unknown になり、型の恩恵を受けられない。
+interface Props {
+  entry: CollectionEntry<'memo'>;
+}
 
 export const getStaticPaths: GetStaticPaths = async () => {
   const memos = sortMemos(await getCollection('memo'));
