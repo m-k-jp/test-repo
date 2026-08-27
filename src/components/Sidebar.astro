@@ -1,6 +1,6 @@
 ---
 import { getCollection } from 'astro:content';
-import { memoTitle, memoDate, formatDate, sortMemos } from '../lib/memo';
+import { memoTitle, memoDate, sortMemos } from '../lib/memo';
 import Thumbnail from './Thumbnail.astro';
 
 /**
@@ -13,6 +13,17 @@ import Thumbnail from './Thumbnail.astro';
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const memos = sortMemos(await getCollection('memo'));
+
+// 件数が増えると平坦な一覧は探しにくいので、年月で区切る。
+// 日付が無いノートは末尾にまとめる。
+const groups: { label: string; items: typeof memos }[] = [];
+for (const entry of memos) {
+  const d = memoDate(entry);
+  const label = d ? `${d.getFullYear()}年${d.getMonth() + 1}月` : '日付なし';
+  const last = groups.at(-1);
+  if (last?.label === label) last.items.push(entry);
+  else groups.push({ label, items: [entry] });
+}
 
 // 現在開いているページを強調するため、末尾スラッシュを揃えて比較する
 const here = Astro.url.pathname.replace(/\/$/, '');
@@ -31,22 +42,26 @@ const here = Astro.url.pathname.replace(/\/$/, '');
     {memos.length === 0 ? (
       <p class="empty">まだノートがありません</p>
     ) : (
-      <ul>
-        {memos.map((entry) => {
-          const href = `${base}/memo/${entry.id}`;
-          return (
-            <li>
-              <a href={`${href}/`} aria-current={here === href ? 'page' : undefined}>
-                <Thumbnail entry={entry} title={memoTitle(entry)} size="36px" />
-                <span class="text">
-                  <span class="title">{memoTitle(entry)}</span>
-                  <span class="date">{formatDate(memoDate(entry))}</span>
-                </span>
-              </a>
-            </li>
-          );
-        })}
-      </ul>
+      groups.map((g) => (
+        <>
+          <p class="month">{g.label}</p>
+          <ul>
+            {g.items.map((entry) => {
+              const href = `${base}/memo/${entry.id}`;
+              return (
+                <li>
+                  <a href={`${href}/`} aria-current={here === href ? 'page' : undefined}>
+                    <Thumbnail entry={entry} title={memoTitle(entry)} size="36px" />
+                    <span class="text">
+                      <span class="title">{memoTitle(entry)}</span>
+                    </span>
+                  </a>
+                </li>
+              );
+            })}
+          </ul>
+        </>
+      ))
     )}
 
     <p class="section">ページ</p>
@@ -57,6 +72,19 @@ const here = Astro.url.pathname.replace(/\/$/, '');
     </ul>
   </nav>
 </aside>
+
+<script is:inline>
+  // 一覧の下のほうにあるノートを開いたとき、ペインは先頭を向いたままになる。
+  // 描画が終わる前に現在地へ寄せておくことで、スクロールが跳ねて見えるのを防ぐ。
+  (function () {
+    const pane = document.getElementById('sidebar');
+    const list = pane && pane.querySelector('nav');
+    const current = list && list.querySelector('a[aria-current="page"]');
+    if (!current) return;
+    const offset = current.offsetTop - list.clientHeight / 2 + current.clientHeight / 2;
+    list.scrollTop = Math.max(0, offset);
+  })();
+</script>
 
 <style>
   aside {
@@ -70,8 +98,8 @@ const here = Astro.url.pathname.replace(/\/$/, '');
     flex-direction: column;
     background: var(--surface-2);
     border-right: 1px solid var(--border);
-    overflow-y: auto;
-    overscroll-behavior: contain;
+    /* スクロールするのは nav だけ。見出しは上に留める */
+    overflow: hidden;
     /* 既定は隠した状態。開いているときだけ 0 に戻す */
     transform: translateX(-100%);
     transition: transform 0.22s ease;
@@ -106,9 +134,11 @@ const here = Astro.url.pathname.replace(/\/$/, '');
   }
 
   .head {
+    flex: none;
     padding: 1rem 1rem 0.5rem;
     /* 開閉ボタンと重ならないよう左に余白を取る */
     padding-left: 3.5rem;
+    background: var(--surface-2);
   }
 
   .site {
@@ -119,11 +149,27 @@ const here = Astro.url.pathname.replace(/\/$/, '');
   }
 
   nav {
-    padding: 0.5rem 0.6rem 2rem;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 0 0.6rem 2rem;
+  }
+
+  .month {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    margin: 0.8rem 0 0.3rem;
+    padding: 0.25rem 0.4rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--muted);
+    background: var(--surface-2);
   }
 
   .section {
-    margin: 1rem 0 0.4rem;
+    margin: 1.4rem 0 0.4rem;
     padding: 0 0.4rem;
     font-size: 0.7rem;
     font-weight: 600;
@@ -169,12 +215,6 @@ const here = Astro.url.pathname.replace(/\/$/, '');
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
-  }
-
-  .date {
-    font-size: 0.7rem;
-    color: var(--muted);
-    font-variant-numeric: tabular-nums;
   }
 
   .plain a {
