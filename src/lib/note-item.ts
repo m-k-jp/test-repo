@@ -23,13 +23,6 @@ const escapeHtml = (s: string) =>
 export function renderThumbnail(t: Thumbnail, size: string): string {
   const style = `--thumb-size:${size}`;
 
-  if (t.kind === 'image') {
-    return (
-      `<span class="thumb thumb--image" style="${style}">` +
-      `<img src="${escapeHtml(t.src ?? '')}" alt="" loading="lazy" decoding="async"></span>`
-    );
-  }
-
   const lines = t.lines
     .map((l) => {
       const color = l.kind === 'code' && t.lang ? `;background:${t.lang.color}` : '';

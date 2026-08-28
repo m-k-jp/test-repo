@@ -21,13 +21,6 @@
   background: var(--doc-bg);
 }
 
-.thumb--image img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
 /* 書類の紙色。ページ背景から少しだけ浮かせる */
 .thumb--doc {
   --doc-bg: #fbfaf8;

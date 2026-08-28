@@ -5,10 +5,14 @@ type Memo = CollectionEntry<'memo'>;
 /**
  * ノートのサムネイルを本文から導く。
  *
- * 画像があればそれを使い、無ければ「書類」として描く。
- * コードを含む場合は行を構文色で塗り、隅に言語バッジを置く。
- * ファイルエクスプローラーのアイコンと同じ発想で、
- * どれも同じ「書類」の枠に収まり、中身だけが違う状態を作る。
+ * すべて「書類」として描く。コードを含む場合は行を構文色で塗り、
+ * 隅に言語バッジを置く。ファイルエクスプローラーのアイコンと同じ発想で、
+ * どれも同じ枠に収まり、中身だけが違う状態を作る。
+ *
+ * 画像を持つノートでその画像をサムネイルにする案は見送っている。
+ * 縮小せずに元画像を参照すると、36px の枠のために数百 KB〜数 MB を
+ * 落とすことになり、軽さという長所が失われるため。
+ * 縮小して使う実装は課題として別に立ててある。
  */
 
 /** 描画する1行。太さと長さで見出し・地の文・コードを表す */
@@ -19,9 +23,6 @@ export interface ThumbLine {
 }
 
 export interface Thumbnail {
-  /** image: 実画像を使う / doc: 書類として描く */
-  kind: 'image' | 'doc';
-  src?: string;
   lines: ThumbLine[];
   /** コードを含む場合の言語（バッジと配色に使う） */
   lang?: LangInfo;
@@ -100,13 +101,6 @@ function hueFrom(seed: string): number {
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
-/** 本文の最初の画像を探す。フロントマターの image があればそちらを優先する */
-function findImage(entry: Memo): string | undefined {
-  if (entry.data.image) return entry.data.image;
-  const m = (entry.body ?? '').match(/!\[[^\]]*\]\(([^)\s]+)/);
-  return m?.[1];
-}
-
 interface Parsed {
   text: ThumbLine[];
   code: ThumbLine[];
@@ -168,10 +162,6 @@ function initialOf(title: string): string {
 export function thumbnail(entry: Memo, title: string): Thumbnail {
   const hue = hueFrom(entry.id);
   const initial = initialOf(title);
-  const src = findImage(entry);
-
-  if (src) return { kind: 'image', src, lines: [], initial, hue };
-
   const { text, code, lang } = parseBody(entry.body ?? '');
 
   // 地の文を数行見せてからコードを見せると、記事の姿が伝わる。
@@ -181,7 +171,6 @@ export function thumbnail(entry: Memo, title: string): Thumbnail {
     : text.slice(0, 9);
 
   return {
-    kind: 'doc',
     lines,
     lang: lang ? langInfo(lang) : undefined,
     initial,
